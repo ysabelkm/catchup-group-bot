@@ -13,7 +13,7 @@ const ACTIONABLE = ["assignment", "task", "project"] as const;
 
 type DueInfo = { dueAt: Date | null; dueDatePhrase: string | null; dueDateUncertain: boolean };
 
-function lifecycleOptions(group: { timezone: string; settings: unknown }): LifecycleOptions {
+export function lifecycleOptions(group: { timezone: string; settings: unknown }): LifecycleOptions {
   return {
     timezone: group.timezone,
     summaryTime: config.SUMMARY_TIME,

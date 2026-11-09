@@ -7,6 +7,9 @@ import { logger } from "./logger.js";
 import { commands } from "./handlers/commands.js";
 import { ingest } from "./handlers/ingest.js";
 import { membership } from "./handlers/membership.js";
+import { admin } from "./handlers/admin.js";
+import { corrections } from "./handlers/corrections.js";
+import { personal } from "./handlers/personal.js";
 import { sendDueSummaries } from "./summary/send.js";
 
 /** Update types the bot asks Telegram for. */
@@ -46,6 +49,9 @@ export function createBot(token = config.TELEGRAM_BOT_TOKEN) {
 
   bot.use(membership);
   bot.use(ingest);
+  bot.use(personal);
+  bot.use(corrections);
+  bot.use(admin);
   bot.use(commands);
 
   // Never crash on a bad update; log it and move on (spec §4.2 step 7).
@@ -64,6 +70,10 @@ export function createBot(token = config.TELEGRAM_BOT_TOKEN) {
 export async function registerCommands(bot: Bot) {
   await bot.api.setMyCommands(
     [
+      { command: "catchup", description: "Everything since your last catch-up" },
+      { command: "items", description: "All active items in your groups" },
+      { command: "summary", description: "Today's summary so far" },
+      { command: "settings", description: "Daily summary by DM on/off" },
       { command: "start", description: "What this bot does" },
       { command: "privacy", description: "What is stored and for how long" },
     ],
@@ -73,6 +83,10 @@ export async function registerCommands(bot: Bot) {
     [
       { command: "summary", description: "Show today's summary so far" },
       { command: "items", description: "List assignments, tasks and notes still active" },
+      { command: "due", description: "Admins/class reps: reply to set a due date" },
+      { command: "remove", description: "Admins/class reps: reply to remove a wrong item" },
+      { command: "settings", description: "Admins: summary on/off and options" },
+      { command: "editors", description: "Admins: add or remove class reps" },
       { command: "setup", description: "Admins: turn on daily summaries here" },
       { command: "privacy", description: "What is stored and for how long" },
     ],

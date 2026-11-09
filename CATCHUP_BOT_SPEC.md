@@ -93,7 +93,7 @@ For each batch of new messages:
 
 ### 4.5 The daily summary (7:00 PM WAT)
 - Sent **every day at 19:00 Africa/Lagos** for each group with the bot enabled.
-- ⚠ **DECISION PENDING: where it's sent.** Default: posted **in the group**. Option: also DM it to members who pressed Start.
+- **Where it's sent** — *decided by Ysabel, 9 Nov 2026*: posted **in the group**, and also **DM'd to members who opt in** (they press Start, then turn on "Daily summary by DM"). The DM combines all the user's groups, checked with `getChatMember`. A user who blocks the bot is opted out automatically.
 - ⚠ **DECISION PENDING: which topic.** Default: the topic chosen during `/setup`; if none is chosen, the **General** topic.
 - If there's nothing to report, send a short "No academic updates today ✅" (configurable: send or skip).
 - Must cover messages from **all topics**, not just the topic the summary is posted in.
@@ -141,7 +141,7 @@ For each batch of new messages:
 | `/editors` | Admin | Group | Add/remove class reps (trusted editors) |
 | `/privacy` | Anyone | Anywhere | Show what is stored and for how long |
 
-⚠ **DECISION PENDING: who can correct due dates.** Default: **group admins + trusted editors only**.
+**Who can correct due dates and remove items** — *decided by Ysabel, 9 Nov 2026*: **group admins + trusted editors (class reps) only**.
 
 ---
 
@@ -269,8 +269,8 @@ BOT_OWNER_TELEGRAM_ID=
 ---
 
 ## 11. Open decisions (confirm with Ysabel)
-1. **Where the summary goes:** in the group (default), privately to each opted-in member, or both?
+1. ~~**Where the summary goes**~~ — decided: group + DM opt-in (§4.5).
 2. **Which topic** the group summary is posted in: chosen at `/setup` (default), falling back to General.
 3. **Notes & tips:** shown once on the day posted (default), or kept for 7 days like undated assignments?
-4. **Who can correct due dates:** admins + trusted editors (default), or anyone?
+4. ~~**Who can correct due dates**~~ — decided: admins + trusted editors (§4.6).
 5. **Send a summary on days with nothing new?** Default: yes, a one-line "No academic updates today ✅".

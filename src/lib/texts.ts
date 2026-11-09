@@ -15,7 +15,10 @@ Every evening at <b>${config.SUMMARY_TIME} (Lagos time)</b> I post one clean sum
 1. Add me to the group.
 2. An admin sends /setup in the topic where summaries should be posted.
 
-You've pressed Start, so I'm now allowed to message you here.
+<b>Here in private:</b>
+• /catchup: everything since you last checked, across your groups
+• /items: everything still active
+• Tap the button below to also get the 7 PM summary here.
 
 Send /privacy to see what I store and for how long.`;
 

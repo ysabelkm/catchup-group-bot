@@ -5,13 +5,15 @@ import { logger } from "../logger.js";
 import { escapeHtml } from "../lib/html.js";
 import { markBotRemoved, migrateGroup, parseSettings } from "../services/groups.js";
 import { buildSummaryContent, summaryDateDue } from "./build.js";
-import { allItemIds, renderSummary } from "./render.js";
+import { allItemIds, renderSummary, type SummaryContent } from "./render.js";
+import { sendDmSummaries } from "./dm.js";
+import type { GroupBlock } from "./personal.js";
 
 /** A "sending" claim older than this is assumed dead (crash mid-send) and can be retried. */
 const STALE_CLAIM_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
-export type SendReport = { sent: number; skipped: number; failed: { group: string; error: string }[] };
+export type SendReport = { sent: number; skipped: number; dms: number; failed: { group: string; error: string }[] };
 
 let inFlight: Promise<SendReport> | null = null;
 
@@ -29,7 +31,8 @@ export function sendDueSummaries(api: Api, now = new Date()): Promise<SendReport
 }
 
 async function run(api: Api, now: Date): Promise<SendReport> {
-  const report: SendReport = { sent: 0, skipped: 0, failed: [] };
+  const report: SendReport = { sent: 0, skipped: 0, dms: 0, failed: [] };
+  const sentToday: GroupBlock[] = [];
   if (config.BOT_PAUSED) return report;
 
   const groups = await prisma.group.findMany({ where: { enabled: true, botRemovedAt: null }, orderBy: { id: "asc" } });
@@ -47,12 +50,19 @@ async function run(api: Api, now: Date): Promise<SendReport> {
       });
       if (outcome.messageIds.length) report.sent++;
       else report.skipped++;
+      sentToday.push({ group, content: outcome.content });
     } catch (err) {
       const error = describe(err);
       await prisma.summaryLog.update({ where: { id: logId }, data: { status: "failed", error } });
       report.failed.push({ group: group.title, error });
       logger.error({ err, groupId: group.id, date }, "summary failed");
     }
+  }
+
+  try {
+    report.dms = await sendDmSummaries(api, sentToday, now);
+  } catch (err) {
+    logger.error({ err }, "DM summaries failed");
   }
 
   if (report.failed.length) {
@@ -88,7 +98,7 @@ async function claim(groupId: number, summaryDate: string, now: Date): Promise<n
   return count === 1 ? existing.id : null;
 }
 
-async function sendOne(api: Api, groupId: number, now: Date): Promise<{ messageIds: number[] }> {
+async function sendOne(api: Api, groupId: number, now: Date): Promise<{ messageIds: number[]; content: SummaryContent }> {
   const lastSent = await prisma.summaryLog.findFirst({
     where: { groupId, status: "sent", sentAt: { not: null } },
     orderBy: { sentAt: "desc" },
@@ -96,7 +106,7 @@ async function sendOne(api: Api, groupId: number, now: Date): Promise<{ messageI
   const content = await buildSummaryContent(groupId, now, lastSent?.sentAt ?? null);
   const group = await prisma.group.findUniqueOrThrow({ where: { id: groupId } });
   const chunks = renderSummary(content, { timezone: group.timezone, now, sendWhenEmpty: parseSettings(group.settings).sendWhenEmpty });
-  if (chunks.length === 0) return { messageIds: [] };
+  if (chunks.length === 0) return { messageIds: [], content };
 
   const messageIds: number[] = [];
   for (const text of chunks) messageIds.push(await postToGroup(api, groupId, text));
@@ -104,7 +114,7 @@ async function sendOne(api: Api, groupId: number, now: Date): Promise<{ messageI
   // Everything in this summary has now been seen at least once.
   await prisma.item.updateMany({ where: { id: { in: allItemIds(content) }, firstShownAt: null }, data: { firstShownAt: new Date() } });
   logger.info({ groupId, messages: messageIds.length, items: allItemIds(content).length }, "summary sent");
-  return { messageIds };
+  return { messageIds, content };
 }
 
 /** Post into the group's summary topic, coping with deleted topics, migrations and removal. */

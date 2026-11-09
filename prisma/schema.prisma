@@ -80,12 +80,27 @@ model User {
   firstName      String
   /// True once the user pressed Start in a private chat (bots can't DM otherwise).
   dmOptIn        Boolean   @default(false)
+  /// User turned on the daily summary by DM (spec §4.5).
+  dmSummaries    Boolean   @default(false)
   lastCatchupAt  DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   memberships GroupMember[]
   messages    Message[]
+  dmSummaryLogs DmSummaryLog[]
+}
+
+/// One row per user per day: the daily DM summary was sent (prevents double-sending).
+model DmSummaryLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  summaryDate String
+  sentAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, summaryDate])
 }
 
 model GroupMember {

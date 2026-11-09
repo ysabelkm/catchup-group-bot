@@ -5,9 +5,8 @@ import { logger } from "../logger.js";
 import { escapeHtml } from "../lib/html.js";
 import { botCanReadMessages, isGroupAdmin } from "../lib/permissions.js";
 import { topicThreadId } from "../lib/telegram.js";
-import { PRIVACY, PRIVACY_MODE_WARNING, WELCOME } from "../lib/texts.js";
+import { PRIVACY, PRIVACY_MODE_WARNING } from "../lib/texts.js";
 import { isGroupChat, parseSettings, upsertGroup } from "../services/groups.js";
-import { upsertUser } from "../services/users.js";
 import { activeItems, formatItemLine } from "../services/items.js";
 import { buildSummaryContent } from "../summary/build.js";
 import { renderSummary } from "../summary/render.js";
@@ -16,11 +15,7 @@ export const commands = new Composer();
 
 const html = { parse_mode: "HTML" as const, link_preview_options: { is_disabled: true } };
 
-// --- /start (private chat) -------------------------------------------------------------
-commands.chatType("private").command("start", async (ctx) => {
-  await upsertUser(ctx.from, { dmOptIn: true });
-  await ctx.reply(WELCOME, html);
-});
+// /start in private chat lives in personal.ts (with the DM opt-in button).
 
 commands.chatType(["group", "supergroup"]).command("start", async (ctx) => {
   await ctx.reply("I'm here 👋 An admin can send /setup to turn on daily summaries. Send /privacy to see what I store.", {
@@ -123,9 +118,6 @@ commands.chatType(["group", "supergroup"]).command("items", async (ctx) => {
   await ctx.reply(out, { ...html, reply_parameters: { message_id: ctx.msg.message_id } });
 });
 
-commands.chatType("private").command("items", async (ctx) => {
-  await ctx.reply("For now, send /items inside your class group. A personal version across all your groups is coming.");
-});
 
 // --- /summary (group): preview of today's summary, rate-limited ----------------------------
 // Doesn't log or mark items as shown, so the real 7 PM summary is unaffected.
@@ -155,8 +147,4 @@ commands.chatType(["group", "supergroup"]).command("summary", async (ctx) => {
   for (const [i, text] of chunks.entries()) {
     await ctx.reply(text, { ...html, ...(i === 0 ? { reply_parameters: { message_id: ctx.msg.message_id } } : {}) });
   }
-});
-
-commands.chatType("private").command("summary", async (ctx) => {
-  await ctx.reply("For now, send /summary inside your class group. A personal version across all your groups is coming.");
 });
