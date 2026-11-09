@@ -5,6 +5,7 @@ import { logger } from "../logger.js";
 import { ensureTopic, isGroupChat, migrateGroup, upsertGroup, upsertTopic } from "../services/groups.js";
 import { ensureMember, upsertUser } from "../services/users.js";
 import { attachmentInfo, isBotCommand, messageContent, realReplyToId, topicThreadId } from "../lib/telegram.js";
+import { processMessage } from "../extraction/pipeline.js";
 
 /**
  * Stores every group message from every topic (spec §4.1).
@@ -79,7 +80,7 @@ async function storeMessage(msg: Message, opts: { edited?: boolean } = {}) {
     ...attachment,
   };
 
-  await prisma.message.upsert({
+  const stored = await prisma.message.upsert({
     where: { groupId_telegramMessageId: { groupId: group.id, telegramMessageId: msg.message_id } },
     create: {
       groupId: group.id,
@@ -95,4 +96,12 @@ async function storeMessage(msg: Message, opts: { edited?: boolean } = {}) {
   });
 
   logger.debug({ chatId: msg.chat.id, messageId: msg.message_id, threadId, edited: !!opts.edited }, "message stored");
+
+  // Rule-based extraction is cheap, so run it straight away. If it fails, the message stays
+  // unprocessed and the daily job picks it up (processPending).
+  try {
+    await processMessage(stored.id);
+  } catch (err) {
+    logger.error({ err, messageId: stored.id }, "extraction failed; will retry in the daily run");
+  }
 }

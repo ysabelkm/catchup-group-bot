@@ -58,6 +58,7 @@ export async function registerCommands(bot: Bot) {
   );
   await bot.api.setMyCommands(
     [
+      { command: "items", description: "List assignments, tasks and notes still active" },
       { command: "setup", description: "Admins: turn on daily summaries here" },
       { command: "privacy", description: "What is stored and for how long" },
     ],

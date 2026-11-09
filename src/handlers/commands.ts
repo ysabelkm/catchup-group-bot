@@ -8,6 +8,7 @@ import { topicThreadId } from "../lib/telegram.js";
 import { PRIVACY, PRIVACY_MODE_WARNING, WELCOME } from "../lib/texts.js";
 import { isGroupChat, parseSettings, upsertGroup } from "../services/groups.js";
 import { upsertUser } from "../services/users.js";
+import { activeItems, formatItemLine } from "../services/items.js";
 
 export const commands = new Composer();
 
@@ -76,4 +77,50 @@ commands.chatType(["group", "supergroup"]).command("setup", async (ctx) => {
     { chatId: ctx.chat.id, summaryTopicId: threadId, canRead: access.ok },
     "group set up",
   );
+});
+
+// --- /items (group) ----------------------------------------------------------------------
+// Basic group version. The DM version (all your groups, membership-checked) comes with /catchup.
+const ITEMS_MAX_CHARS = 3800;
+
+commands.chatType(["group", "supergroup"]).command("items", async (ctx) => {
+  const group = await prisma.group.findUnique({ where: { telegramChatId: BigInt(ctx.chat.id) } });
+  if (!group) {
+    await ctx.reply("I haven't seen any messages here yet.");
+    return;
+  }
+  const now = new Date();
+  const items = await activeItems(group.id, now);
+  if (items.length === 0) {
+    await ctx.reply("No active items right now ✅", { reply_parameters: { message_id: ctx.msg.message_id } });
+    return;
+  }
+
+  const sections: [string, typeof items][] = [
+    ["⏰ <b>Due soon</b>", items.filter((i) => i.dueAt)],
+    ["🔄 <b>Ongoing (no due date stated)</b>", items.filter((i) => !i.dueAt && i.type !== "note" && i.type !== "tip")],
+    ["📎 <b>Notes &amp; tips</b>", items.filter((i) => i.type === "note" || i.type === "tip")],
+  ];
+
+  let out = `📋 <b>Active items — ${escapeHtml(group.title)}</b>`;
+  let shown = 0;
+  outer: for (const [heading, list] of sections) {
+    if (list.length === 0) continue;
+    const block = `\n\n${heading}`;
+    if (out.length + block.length > ITEMS_MAX_CHARS) break;
+    out += block;
+    for (const item of list) {
+      const line = `\n${formatItemLine(item, group.timezone, now)}`;
+      if (out.length + line.length > ITEMS_MAX_CHARS) break outer;
+      out += line;
+      shown++;
+    }
+  }
+  if (shown < items.length) out += `\n\n…and ${items.length - shown} more.`;
+
+  await ctx.reply(out, { ...html, reply_parameters: { message_id: ctx.msg.message_id } });
+});
+
+commands.chatType("private").command("items", async (ctx) => {
+  await ctx.reply("For now, send /items inside your class group. A personal version across all your groups is coming.");
 });
