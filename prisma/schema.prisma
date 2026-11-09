@@ -151,6 +151,8 @@ model Item {
   /// Computed from the lifecycle rules (spec §4.4, §5.3).
   expiresAt        DateTime
   status           ItemStatus @default(active)
+  /// First daily summary that included this item. null = not shown yet (spec §4.5, missed summaries).
+  firstShownAt     DateTime?
 
   group   Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
   sources ItemSource[]
@@ -192,8 +194,14 @@ model SummaryLog {
   groupId            Int
   /// Lagos calendar date of the summary, YYYY-MM-DD.
   summaryDate        String
+  /// sending | sent | failed. The row is claimed before sending so two runs can't both send.
+  status             String   @default("sending")
+  attempts           Int      @default(1)
+  error              String?
   telegramMessageIds Int[]
-  sentAt             DateTime @default(now())
+  createdAt          DateTime @default(now())
+  /// When the summary actually went out (null until sent).
+  sentAt             DateTime?
 
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
 

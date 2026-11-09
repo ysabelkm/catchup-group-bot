@@ -98,6 +98,12 @@ For each batch of new messages:
 - If there's nothing to report, send a short "No academic updates today ✅" (configurable: send or skip).
 - Must cover messages from **all topics**, not just the topic the summary is posted in.
 
+**If a summary is missed** (bot asleep, scheduler down, Telegram error) — *decided by Ysabel, 9 Nov 2026*:
+- **Send late, never skip.** `SummaryLog` records each sent summary per group per day. Whenever the bot runs after 19:00 (the next cron call, an incoming message, the 18:55 wake-up) and today's summary isn't logged, it sends it then.
+- **Nothing is lost.** Each item records whether it has appeared in a summary. "New today" means *new since the last summary that was actually sent*, so a missed day rolls into the next one. Notes/tips shown "once" are shown in the first summary that actually goes out.
+- **Show deadlines that passed unseen.** If a deadline passed while no summary went out, the next summary lists it in a short **"⌛ Was due since the last summary"** section. This section only appears after a missed day.
+- **Alert the owner.** A failed summary is reported to `BOT_OWNER_TELEGRAM_ID` on Telegram (cron-job.org also emails on a failed 7 PM call).
+
 **Format (Telegram HTML):**
 
 ```

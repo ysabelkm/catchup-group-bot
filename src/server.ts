@@ -68,7 +68,7 @@ export function createHttpServer(bot: Bot) {
           return;
         }
         // Reply at once so the scheduler doesn't time out; the work continues in the background.
-        void runDailyJobs().catch((err) => logger.error({ err }, "daily jobs failed"));
+        void runDailyJobs(bot.api).catch((err) => logger.error({ err }, "daily jobs failed"));
         send(res, 202, { ok: true, started: true });
         return;
       }

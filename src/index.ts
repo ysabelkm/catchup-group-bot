@@ -3,6 +3,7 @@ import { prisma } from "./db.js";
 import { logger } from "./logger.js";
 import { ALLOWED_UPDATES, createBot, registerCommands } from "./bot.js";
 import { createHttpServer, WEBHOOK_PATH } from "./server.js";
+import { sendDueSummaries } from "./summary/send.js";
 
 async function main() {
   const bot = createBot();
@@ -30,6 +31,9 @@ async function main() {
       allowed_updates: [...ALLOWED_UPDATES],
     });
     logger.info({ webhookUrl }, "webhook registered");
+
+    // Free hosting sleeps; whenever we wake up after 7 PM, make sure today's summaries went out.
+    void sendDueSummaries(bot.api).catch((err) => logger.error({ err }, "startup summary check failed"));
 
     const shutdown = (signal: string) => {
       logger.info({ signal }, "shutting down");

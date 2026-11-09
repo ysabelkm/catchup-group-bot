@@ -7,9 +7,12 @@ import { logger } from "./logger.js";
 import { commands } from "./handlers/commands.js";
 import { ingest } from "./handlers/ingest.js";
 import { membership } from "./handlers/membership.js";
+import { sendDueSummaries } from "./summary/send.js";
 
 /** Update types the bot asks Telegram for. */
 export const ALLOWED_UPDATES = ["message", "edited_message", "my_chat_member", "callback_query"] as const;
+
+const SUMMARY_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
 export function createBot(token = config.TELEGRAM_BOT_TOKEN) {
   const bot = new Bot(token);
@@ -29,6 +32,16 @@ export function createBot(token = config.TELEGRAM_BOT_TOKEN) {
       return;
     }
     await next();
+  });
+
+  // "Send late, never skip" (spec §4.5): any activity after 7 PM checks that today's summaries
+  // went out. Throttled; does nothing before SUMMARY_TIME or once everything is sent.
+  let lastSummaryCheck = 0;
+  bot.use(async (ctx, next) => {
+    await next();
+    if (Date.now() - lastSummaryCheck < SUMMARY_CHECK_INTERVAL_MS) return;
+    lastSummaryCheck = Date.now();
+    void sendDueSummaries(ctx.api).catch((err) => logger.error({ err }, "late summary check failed"));
   });
 
   bot.use(membership);
@@ -58,6 +71,7 @@ export async function registerCommands(bot: Bot) {
   );
   await bot.api.setMyCommands(
     [
+      { command: "summary", description: "Show today's summary so far" },
       { command: "items", description: "List assignments, tasks and notes still active" },
       { command: "setup", description: "Admins: turn on daily summaries here" },
       { command: "privacy", description: "What is stored and for how long" },

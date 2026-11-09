@@ -9,6 +9,8 @@ import { PRIVACY, PRIVACY_MODE_WARNING, WELCOME } from "../lib/texts.js";
 import { isGroupChat, parseSettings, upsertGroup } from "../services/groups.js";
 import { upsertUser } from "../services/users.js";
 import { activeItems, formatItemLine } from "../services/items.js";
+import { buildSummaryContent } from "../summary/build.js";
+import { renderSummary } from "../summary/render.js";
 
 export const commands = new Composer();
 
@@ -123,4 +125,38 @@ commands.chatType(["group", "supergroup"]).command("items", async (ctx) => {
 
 commands.chatType("private").command("items", async (ctx) => {
   await ctx.reply("For now, send /items inside your class group. A personal version across all your groups is coming.");
+});
+
+// --- /summary (group): preview of today's summary, rate-limited ----------------------------
+// Doesn't log or mark items as shown, so the real 7 PM summary is unaffected.
+const SUMMARY_COOLDOWN_MS = 2 * 60 * 1000;
+const lastSummaryPreview = new Map<number, number>();
+
+commands.chatType(["group", "supergroup"]).command("summary", async (ctx) => {
+  const last = lastSummaryPreview.get(ctx.chat.id) ?? 0;
+  if (Date.now() - last < SUMMARY_COOLDOWN_MS) {
+    await ctx.reply("I just sent one, scroll up 🙂 (try again in a couple of minutes)", { reply_parameters: { message_id: ctx.msg.message_id } });
+    return;
+  }
+  const group = await prisma.group.findUnique({ where: { telegramChatId: BigInt(ctx.chat.id) } });
+  if (!group) {
+    await ctx.reply("I haven't seen any messages here yet.");
+    return;
+  }
+  lastSummaryPreview.set(ctx.chat.id, Date.now());
+
+  const now = new Date();
+  const lastSent = await prisma.summaryLog.findFirst({
+    where: { groupId: group.id, status: "sent", sentAt: { not: null } },
+    orderBy: { sentAt: "desc" },
+  });
+  const content = await buildSummaryContent(group.id, now, lastSent?.sentAt ?? null);
+  const chunks = renderSummary(content, { timezone: group.timezone, now, sendWhenEmpty: true, title: "Summary so far" });
+  for (const [i, text] of chunks.entries()) {
+    await ctx.reply(text, { ...html, ...(i === 0 ? { reply_parameters: { message_id: ctx.msg.message_id } } : {}) });
+  }
+});
+
+commands.chatType("private").command("summary", async (ctx) => {
+  await ctx.reply("For now, send /summary inside your class group. A personal version across all your groups is coming.");
 });

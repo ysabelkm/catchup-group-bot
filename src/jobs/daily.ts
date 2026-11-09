@@ -1,6 +1,8 @@
+import type { Api } from "grammy";
 import { config } from "../config.js";
 import { logger } from "../logger.js";
 import { expireItems, processPending } from "../extraction/pipeline.js";
+import { sendDueSummaries, type SendReport } from "../summary/send.js";
 
 let running: Promise<DailyResult> | null = null;
 
@@ -9,17 +11,17 @@ export type DailyResult = {
   status: "done" | "paused";
   processed: number;
   expired: number;
-  notes: string[];
+  summaries: SendReport | null;
 };
 
 /**
  * Daily work, triggered by the external scheduler at SUMMARY_TIME (see /cron/daily):
  *   1. extract items from any messages still unprocessed
  *   2. expire items whose time has passed
- *   3. send summaries (milestone 4)
+ *   3. send today's summaries (spec §4.5)
  * Overlapping triggers share one run.
  */
-export function runDailyJobs(): Promise<DailyResult> {
+export function runDailyJobs(api: Api): Promise<DailyResult> {
   if (running) return running;
   running = (async (): Promise<DailyResult> => {
     const startedAt = new Date().toISOString();
@@ -30,11 +32,12 @@ export function runDailyJobs(): Promise<DailyResult> {
 
     if (config.BOT_PAUSED) {
       logger.warn({ processed, expired }, "summaries skipped: BOT_PAUSED is on");
-      return { startedAt, status: "paused", processed, expired, notes: [] };
+      return { startedAt, status: "paused", processed, expired, summaries: null };
     }
 
-    logger.info({ processed, expired }, "daily jobs done (summary sending arrives in milestone 4)");
-    return { startedAt, status: "done", processed, expired, notes: ["summary not implemented yet"] };
+    const summaries = await sendDueSummaries(api);
+    logger.info({ processed, expired, summaries }, "daily jobs done");
+    return { startedAt, status: "done", processed, expired, summaries };
   })().finally(() => {
     running = null;
   });
