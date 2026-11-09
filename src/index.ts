@@ -1,4 +1,4 @@
-import { config } from "./config.js";
+import { config, webhookSecretToken } from "./config.js";
 import { prisma } from "./db.js";
 import { logger } from "./logger.js";
 import { ALLOWED_UPDATES, createBot, registerCommands } from "./bot.js";
@@ -26,7 +26,7 @@ async function main() {
 
     const webhookUrl = new URL(WEBHOOK_PATH, config.PUBLIC_BASE_URL).toString();
     await bot.api.setWebhook(webhookUrl, {
-      secret_token: config.TELEGRAM_WEBHOOK_SECRET,
+      secret_token: webhookSecretToken,
       allowed_updates: [...ALLOWED_UPDATES],
     });
     logger.info({ webhookUrl }, "webhook registered");

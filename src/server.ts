@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import { webhookCallback, type Bot } from "grammy";
-import { config } from "./config.js";
+import { config, webhookSecretToken } from "./config.js";
 import { prisma } from "./db.js";
 import { logger } from "./logger.js";
 import { runDailyJobs } from "./jobs/daily.js";
@@ -37,7 +37,7 @@ function cronAuthorised(req: IncomingMessage, url: URL) {
 export function createHttpServer(bot: Bot) {
   // grammY checks X-Telegram-Bot-Api-Secret-Token and answers 401 when it doesn't match.
   const handleUpdate = webhookCallback(bot, "http", {
-    secretToken: config.TELEGRAM_WEBHOOK_SECRET,
+    secretToken: webhookSecretToken,
     // Answer Telegram before its own timeout; a slow update is logged rather than retried forever.
     onTimeout: "return",
     timeoutMilliseconds: 25_000,
