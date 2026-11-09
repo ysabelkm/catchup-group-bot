@@ -1,0 +1,208 @@
+// Catch-up Bot data model. See CATCHUP_BOT_SPEC.md §5.3.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MemberRole {
+  member
+  editor
+  admin
+}
+
+enum ItemType {
+  assignment
+  task
+  project
+  note
+  tip
+}
+
+enum DueSource {
+  ai
+  rule
+  manual
+}
+
+enum ItemStatus {
+  active
+  expired
+  removed
+}
+
+model Group {
+  id             Int       @id @default(autoincrement())
+  /// Telegram chat id. Changes when a group is migrated to a supergroup.
+  telegramChatId BigInt    @unique
+  title          String
+  isForum        Boolean   @default(false)
+  /// Summaries only go out when enabled (set by /setup).
+  enabled        Boolean   @default(false)
+  /// Forum topic for the daily summary. null = General topic / main chat.
+  summaryTopicId Int?
+  /// See GroupSettings in src/services/groups.ts.
+  settings       Json      @default("{}")
+  timezone       String    @default("Africa/Lagos")
+  /// Set when the bot is removed/kicked from the group.
+  botRemovedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  topics     Topic[]
+  members    GroupMember[]
+  messages   Message[]
+  items      Item[]
+  summaries  SummaryLog[]
+}
+
+model Topic {
+  id        Int      @id @default(autoincrement())
+  groupId   Int
+  /// Telegram message_thread_id.
+  threadId  Int
+  name      String
+  updatedAt DateTime @updatedAt
+
+  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([groupId, threadId])
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  telegramUserId BigInt    @unique
+  firstName      String
+  /// True once the user pressed Start in a private chat (bots can't DM otherwise).
+  dmOptIn        Boolean   @default(false)
+  lastCatchupAt  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  memberships GroupMember[]
+  messages    Message[]
+}
+
+model GroupMember {
+  id      Int        @id @default(autoincrement())
+  userId  Int
+  groupId Int
+  role    MemberRole @default(member)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+}
+
+model Message {
+  id                Int       @id @default(autoincrement())
+  groupId           Int
+  /// null = General topic, or a group without topics.
+  topicId           Int?
+  telegramMessageId Int
+  senderId          Int?
+  sentAt            DateTime
+  editedAt          DateTime?
+  /// Text or caption. Wiped after RAW_MESSAGE_RETENTION_DAYS.
+  text              String?
+  /// URLs found in the message, including hidden text_link entities.
+  links             String[]
+  replyToMessageId  Int?
+  hasFile           Boolean   @default(false)
+  fileName          String?
+  /// document | photo | video | audio | voice | video_note | sticker | animation
+  fileType          String?
+  mimeType          String?
+  /// null = waiting for extraction. Reset to null when the message is edited.
+  processedAt       DateTime?
+  deleted           Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+
+  group   Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  topic   Topic?       @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  sender  User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  sources ItemSource[]
+
+  @@unique([groupId, telegramMessageId])
+  @@index([groupId, processedAt])
+  @@index([sentAt])
+}
+
+model Item {
+  id               Int        @id @default(autoincrement())
+  groupId          Int
+  type             ItemType
+  title            String
+  courseCode       String?
+  summary          String?
+  dueAt            DateTime?
+  dueDateUncertain Boolean    @default(false)
+  dueSource        DueSource?
+  /// Message that first created this item (Message.id).
+  firstMessageId   Int?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  /// Computed from the lifecycle rules (spec §4.4, §5.3).
+  expiresAt        DateTime
+  status           ItemStatus @default(active)
+
+  group   Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sources ItemSource[]
+  changes ItemChange[]
+
+  @@index([groupId, status, expiresAt])
+}
+
+model ItemSource {
+  id        Int      @id @default(autoincrement())
+  itemId    Int
+  messageId Int
+  /// created | updated
+  kind      String
+  createdAt DateTime @default(now())
+
+  item    Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, messageId])
+}
+
+model ItemChange {
+  id        Int      @id @default(autoincrement())
+  itemId    Int
+  /// e.g. dueAt, title, status
+  field     String
+  oldValue  String?
+  newValue  String?
+  /// ai | rule | manual:<telegramUserId>
+  changedBy String
+  createdAt DateTime @default(now())
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+}
+
+model SummaryLog {
+  id                 Int      @id @default(autoincrement())
+  groupId            Int
+  /// Lagos calendar date of the summary, YYYY-MM-DD.
+  summaryDate        String
+  telegramMessageIds Int[]
+  sentAt             DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, summaryDate])
+}
+
+model ProcessedUpdate {
+  updateId    BigInt   @id
+  processedAt DateTime @default(now())
+
+  @@index([processedAt])
+}

@@ -1,0 +1,36 @@
+# Render Blueprint: Dashboard → New → Blueprint → pick this repo.
+# Secrets marked `sync: false` are entered in the dashboard and never stored here.
+services:
+  - type: web
+    name: catchup-bot
+    runtime: node
+    plan: free
+    region: frankfurt # closest Render region to Lagos
+    buildCommand: npm ci --include=dev && npm run build
+    # Apply DB migrations, then start. (Free plans have no pre-deploy step.)
+    startCommand: npm run db:deploy && npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: BOT_MODE
+        value: webhook
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: SUMMARY_TIME
+        value: "19:00"
+      - key: DEFAULT_TIMEZONE
+        value: Africa/Lagos
+      - key: LOG_LEVEL
+        value: info
+      - key: BOT_PAUSED
+        value: "false"
