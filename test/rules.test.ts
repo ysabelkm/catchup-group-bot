@@ -39,6 +39,27 @@ describe("extractRuleBased: ignores chatter", () => {
     },
   );
 
+  it.each([
+    "Buy cheap data! 1GB for N300, DM me",
+    "Hostel available near school gate, call 08012345678",
+    "Get past questions and textbooks for ALL courses at cheap price, click https://bit.ly/pq",
+    "Typing, printing and project write-up services available. Assignment help too. DM",
+    "We do your assignments and projects for you, fast delivery, 100% guaranteed",
+    "Final year project writing services, affordable and legit. WhatsApp 08098765432",
+    "Fellowship this Sunday by 4pm, everyone should come",
+    "Birthday party on Friday by 6pm, make sure you come",
+    "Vote for me as class rep 🗳️",
+  ])("adverts and social events: %s", (text) => {
+    const links = text.match(/https?:\/\/\S+/g) ?? [];
+    expect(run(msg(text, { links })).kind).toBe("ignored");
+  });
+
+  it("academic messages that mention money or contacts still count", () => {
+    expect(item(msg("CSC 411 manual is N500, pay to the class rep before Friday")).courseCode).toBe("CSC 411");
+    expect(item(msg("Submit your assignment to me on WhatsApp before Friday, it's for the lecturer")).type).toBe("assignment");
+    expect(item(msg("Group project: each group should pick a topic for you to present next week")).type).toBe("project");
+  });
+
   it("stickers and voice notes", () => {
     expect(run(msg(null, { hasFile: true, fileType: "sticker" })).kind).toBe("ignored");
     expect(run(msg(null, { hasFile: true, fileType: "voice" })).kind).toBe("ignored");

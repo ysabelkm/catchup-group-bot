@@ -44,7 +44,7 @@ const RE = {
   assignment: /\b(assignments?|assignmt|assgn?t?|ass\s?\d+|homework|hw|take[-\s]home|tutorial\s+questions?|exercises?|submit|submission|portal|worksheet)\b/i,
   tip: /\b(tips?|focus\s+on|likely\s+(to\s+come|questions?)|(will|go)\s+come\s+out|examinable|areas?\s+of\s+concentration|aoc|lecturer\s+(likes|wants|prefers|said|emphasi[sz]ed)|important\s+(topics?|areas?)|don'?t\s+(skip|forget\s+to\s+read)|hint)\b/i,
   task: /\b(read|reading|fill(\s+(in|out))?\s+(the|this|your)?\s*(form|attendance|survey)|attendance|course\s+form|registration|register|bring|print(\s+out)?|prepare|come\s+with|sign\s+(the|in)|make\s+sure|everyone\s+should|all\s+students\s+(should|must|are\s+to))\b/i,
-  note: /\b(slides?|notes?|handouts?|materials?|past\s+questions?|pqs?|textbooks?|lecture\s+notes?|pdfs?|recordings?|e-?books?|summary|summaries|ppt|course\s+outline|syllabus|scheme\s+of\s+work)\b/i,
+  note: /\b(slides?|notes?|handouts?|manuals?|materials?|past\s+questions?|pqs?|textbooks?|lecture\s+notes?|pdfs?|recordings?|e-?books?|summary|summaries|ppt|course\s+outline|syllabus|scheme\s+of\s+work)\b/i,
   /** Context that makes a generic task word ("read", "bring") academic. */
   academic: /\b(class|lecture|lecturer|course|chapter|topic|test|exam|quiz|tutorial|lab|practical|seminar|module|semester|textbook|ca|continuous\s+assessment|dept|department|faculty|hod|level)\b/i,
 } as const;
@@ -54,6 +54,35 @@ const NOTE_LINK = /(drive\.google|docs\.google|dropbox|onedrive|sharepoint|youtu
 
 /** Stickers, voice notes, "ok", "😂", "good morning"… */
 const SMALL_TALK = /^(ok(ay)?|k|kk|yes|yeah|yh|no|nope|lol|lmao|lmfao|haha+|hehe+|thanks?|thank\s+you|thx|tnx|tanks|noted|alright|sure|cool|nice|wow|amen|gm|good\s+(morning|afternoon|evening|night)|hello|hi+|hey|morning|abeg|oya|true|same|me\s+too|\+1)[\s!.?]*$/i;
+
+// --- Adverts and non-academic events ------------------------------------------------------
+
+/** Each pattern is one kind of advert signal; two or more different kinds = an advert. */
+const AD_SIGNALS: RegExp[] = [
+  // Selling / prices
+  /(₦\s?\d|\bN\s?\d{3,}\b|\bngn\b|\bnaira\b|\b\d{1,3}\s?k\b|\bcheap\b|\bprices?\b|\bdiscount|\bpromo\b|\bfor\s+sale\b|\bselling\b|\bbuy\b|\baffordable\b)/i,
+  // "Contact me" / phone numbers / WhatsApp
+  /(\b(dm|pm|inbox|chat|call|text|whatsapp)\s+(me|us|now)\b|\bdm\b\s*[.!]?\s*$|\bwhatsapp\b|wa\.me|\b0[789][01]\d{8}\b|\+234\s?\d)/i,
+  // Offering services
+  /(\bservices?\s+(available|rendered|offered)\b|\bwe\s+(do|offer|write|handle|help)\b|\bfast\s+delivery\b|\bguaranteed?\b|\b100\s?%|\blegit\b|\border\s+(now|yours)\b|\bcontact\s+(me|us)\b)/i,
+  // Paid academic help
+  /(\b(assignments?|projects?|thesis|write-?ups?|seminars?)\s+(help|writing|services?|assistance)\b|\b(do|write)\s+your\s+(assignments?|projects?)\b|\bfor\s+you\b)/i,
+  // Money-making / promos
+  /(\bearn\s+(\d|money|cash|daily|weekly|from)|\binvest(ment)?\b|\bbusiness\s+opportunit|\bgiveaway\b|\breferral\b|\bsponsored\b|\bjoin\s+my\b)/i,
+  // Link shorteners and invite links, common in spam
+  /(bit\.ly|tinyurl|linktr\.ee|cutt\.ly|shorturl)/i,
+];
+
+export function isAdvert(text: string, links: string[] = []): boolean {
+  const haystack = `${text} ${links.join(" ")}`;
+  return AD_SIGNALS.filter((re) => re.test(haystack)).length >= 2;
+}
+
+const COURSE_MATERIAL = /\b(manuals?|textbooks?|handouts?|lab\s+coats?|practical\s+(manual|fee)|course\s+(manual|materials?))\b/i;
+
+const NON_ACADEMIC_EVENT =
+  /\b(fellowship|church|mosque|jum'?u?ah?|jumat|crusade|party|birthday|wedding|owambe|hangout|football|match\s+day|vote|voting|campaign|election|dinner|movie\s+night|week\s+celebration|freshers?\s+night|bonfire)\b/i;
+const STRONG_ACADEMIC = /\b(lecture|lecturer|test|exam|assignments?|chapter|tutorial|practical|lab|seminar\s+paper|project|course\s+form|registration)\b/i;
 
 // --- Pre-filter -------------------------------------------------------------------------
 
@@ -96,6 +125,11 @@ export function classify(msg: MessageInput, hasDate: boolean): Classification | 
   const isQuestion = /\?\s*$/.test(text.trim()) && !msg.hasFile && msg.links.length === 0;
   if (isQuestion) return null;
 
+  // Ads that borrow academic words ("assignment help", "past questions for sale") and social
+  // events with a time ("fellowship by 4pm") are not items.
+  if (!hasCode && isAdvert(text, msg.links)) return null;
+  if (NON_ACADEMIC_EVENT.test(text) && !hasCode && !STRONG_ACADEMIC.test(text)) return null;
+
   if (RE.project.test(text) && (academic || hasDate || /\bproject\b/i.test(text))) {
     return { type: "project", confidence: hasDate || hasCode ? 0.75 : 0.6 };
   }
@@ -109,6 +143,10 @@ export function classify(msg: MessageInput, hasDate: boolean): Classification | 
   }
   if (RE.task.test(text) && (academic || hasDate)) {
     return { type: "task", confidence: hasDate ? 0.65 : 0.5 };
+  }
+  // "Pay for the CSC 411 manual before Friday": course materials only, not hostel fees.
+  if (/\b(pay|payment|buy|collect)\b/i.test(text) && (hasCode || COURSE_MATERIAL.test(text))) {
+    return { type: "task", confidence: hasDate ? 0.6 : 0.5 };
   }
   const noteFile = msg.hasFile && NOTE_FILE_TYPES.has(msg.fileType ?? "") && (msg.fileType === "document" || RE.note.test(text) || academic);
   const noteLink = msg.links.some((l) => NOTE_LINK.test(l)) || (msg.links.length > 0 && (RE.note.test(text) || academic));
