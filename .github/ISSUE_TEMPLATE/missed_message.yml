@@ -1,0 +1,39 @@
+name: Missed or misread message
+description: The bot ignored an academic message, picked up chatter or an advert, or got a date wrong
+labels: [extraction]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        These reports are the best way to improve the extraction rules. Each one usually becomes a test case.
+        **Remove names, phone numbers and anything private** before pasting.
+  - type: textarea
+    id: message
+    attributes:
+      label: The message (redacted)
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What went wrong?
+      options:
+        - It was ignored but is an assignment/task/project/note/tip
+        - It was picked up but is chatter or an advert
+        - Wrong type (e.g. a note shown as an assignment)
+        - Wrong or missing due date
+        - Bad title
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should the bot have done?
+      placeholder: "Assignment for CSC 411, due Friday 20 Nov 11:59 PM"
+  - type: input
+    id: sent
+    attributes:
+      label: When was it sent?
+      description: Relative dates ("by Friday") depend on the send date.
+      placeholder: "Mon 9 Nov 2026, 3:27 PM"

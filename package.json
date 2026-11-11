@@ -3,6 +3,26 @@
   "version": "0.1.0",
   "private": true,
   "description": "CatchUp: Telegram bot that summarises academic content from class groups every evening",
+  "license": "MIT",
+  "author": "Ysabel Ezeani",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ysabelkm/catchup-group-bot.git"
+  },
+  "homepage": "https://github.com/ysabelkm/catchup-group-bot#readme",
+  "bugs": {
+    "url": "https://github.com/ysabelkm/catchup-group-bot/issues"
+  },
+  "keywords": [
+    "telegram",
+    "telegram-bot",
+    "grammy",
+    "students",
+    "education",
+    "summary",
+    "assignments",
+    "nigeria"
+  ],
   "type": "module",
   "engines": {
     "node": ">=22"

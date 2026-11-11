@@ -1,0 +1,33 @@
+name: Bug report
+description: Something CatchUp does is broken
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "**Please don't paste bot tokens, phone numbers or classmates' names.** Redact them first."
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what the bot did instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. In a forum group, send /setup in the Summaries topic
+        2. Send "CSC 411 assignment due Friday"
+        3. Send /items
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      description: Output of `git rev-parse --short HEAD`, if you self-host.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant log lines (with secrets removed).
+      render: text
