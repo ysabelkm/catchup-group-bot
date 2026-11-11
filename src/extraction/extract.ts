@@ -31,7 +31,8 @@ export function extractRuleBased(msg: MessageInput, sentAt: Date, timezone: stri
   const pre = prefilter(msg, due !== null);
   if (!pre.keep) return { kind: "ignored", reason: pre.reason };
 
-  const codes = courseCodes(text);
+  // A file sent with no caption ("ICT415.pdf") still names its course.
+  const codes = courseCodes(text).length ? courseCodes(text) : courseCodes((msg.fileName ?? "").replace(/\.[a-z0-9]{2,5}$/i, "").replace(/_/g, " "));
   const courseCode = codes[0] ?? null;
   const looksLikeUpdate = UPDATE_CUE.test(text);
   const cls = classify(msg, due !== null);

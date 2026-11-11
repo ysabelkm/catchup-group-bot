@@ -41,9 +41,9 @@ export function courseCodes(text: string): string[] {
 
 const RE = {
   project: /\b(projects?|proposals?|term\s+papers?|group\s+(work|presentation)|groups?\s+of\s+\d+|form\s+(your\s+)?groups?|seminar\s+papers?|presentations?|research\s+papers?)\b/i,
-  assignment: /\b(assignments?|assignmt|assgn?t?|ass\s?\d+|homework|hw|take[-\s]home|tutorial\s+questions?|exercises?|submit|submission|portal|worksheet)\b/i,
+  assignment: /\b(assignments?|literature\s+reviews?|essays?|assignmt|assgn?t?|ass\s?\d+|homework|hw|take[-\s]home|tutorial\s+questions?|exercises?|submit|submission|portal|worksheet)\b/i,
   tip: /\b(tips?|focus\s+on|likely\s+(to\s+come|questions?)|(will|go)\s+come\s+out|examinable|areas?\s+of\s+concentration|aoc|lecturer\s+(likes|wants|prefers|said|emphasi[sz]ed)|important\s+(topics?|areas?)|don'?t\s+(skip|forget\s+to\s+read)|hint)\b/i,
-  task: /\b(read|reading|fill(\s+(in|out))?\s+(the|this|your)?\s*(form|attendance|survey)|attendance|course\s+form|registration|register|bring|print(\s+out)?|prepare|come\s+with|sign\s+(the|in)|make\s+sure|everyone\s+should|all\s+students\s+(should|must|are\s+to))\b/i,
+  task: /\b(read|reading|fill(\s+(in|out))?\s+(the|this|your)?\s*(form|attendance|survey)|attendance|course\s+form|registration|register|bring|print(\s+out)?|prepare|come\s+with|sign\s+(the|in)|make\s+sure|everyone\s+should|all\s+students\s+(should|must|are\s+to)|familiari[sz]e\s+yoursel(f|ves)|study|revise|research\s+(on|about)|look\s+up|find\s+out|answer\s+(the|these|this|all)|explain|discuss)\b/i,
   note: /\b(slides?|notes?|handouts?|manuals?|materials?|past\s+questions?|pqs?|textbooks?|lecture\s+notes?|pdfs?|recordings?|e-?books?|summary|summaries|ppt|course\s+outline|syllabus|scheme\s+of\s+work)\b/i,
   /** Context that makes a generic task word ("read", "bring") academic. */
   academic: /\b(class|lecture|lecturer|course|chapter|topic|test|exam|quiz|tutorial|lab|practical|seminar|module|semester|textbook|ca|continuous\s+assessment|dept|department|faculty|hod|level)\b/i,
@@ -122,7 +122,11 @@ export function classify(msg: MessageInput, hasDate: boolean): Classification | 
   const academic = hasCode || RE.academic.test(text);
 
   // Questions are usually students asking ("when is the assignment due?"), not announcing.
-  const isQuestion = /\?\s*$/.test(text.trim()) && !msg.hasFile && msg.links.length === 0;
+  // But a multi-line instruction can end with a question for the class to answer, so only a
+  // one-line message, or one that opens like a student's question, counts.
+  const trimmed = text.trim();
+  const asks = /^(when|what|who|where|which|how|is|are|has|have|do|does|did|can|could|will|should|pls|please|plz|abeg|biko|guys|anyone|una)\b/i;
+  const isQuestion = /\?\s*$/.test(trimmed) && !msg.hasFile && msg.links.length === 0 && (!trimmed.includes("\n") || asks.test(trimmed));
   if (isQuestion) return null;
 
   // Ads that borrow academic words ("assignment help", "past questions for sale") and social
@@ -135,7 +139,7 @@ export function classify(msg: MessageInput, hasDate: boolean): Classification | 
   }
   if (RE.assignment.test(text)) {
     // "submit"/"portal" alone are weak (could be "submit your names for the party").
-    const strong = /\b(assignments?|assignmt|assgn?t?|ass\s?\d+|homework|hw|take[-\s]home|tutorial\s+questions?|exercises?|worksheet)\b/i.test(text);
+    const strong = /\b(assignments?|literature\s+reviews?|essays?|assignmt|assgn?t?|ass\s?\d+|homework|hw|take[-\s]home|tutorial\s+questions?|exercises?|worksheet)\b/i.test(text);
     if (strong || academic) return { type: "assignment", confidence: strong && (hasDate || hasCode) ? 0.8 : 0.6 };
   }
   if (RE.tip.test(text) && (academic || /\b(tips?|focus\s+on|examinable|aoc)\b/i.test(text))) {
@@ -213,20 +217,29 @@ function label(type: ItemType, text: string): string | null {
 
 export function buildTitle(type: ItemType, msg: MessageInput, courseCode: string | null): string {
   const text = clean(msg.text ?? "");
-  const firstLine = clean((msg.text ?? "").split("\n").find((l) => clean(l).length > 0) ?? "");
   const lbl = label(type, text);
+
+  // Drop a leading course code ("ICT415", "INS 412 -") so it isn't repeated after the prefix,
+  // and skip lines that are nothing but the code.
+  const codeRe = courseCode ? new RegExp(`^${courseCode.replace(" ", "\\s?-?")}\\b\\s*[-–:.,]?\\s*`, "i") : null;
+  const strip = (s: string) => (codeRe ? s.replace(codeRe, "").trim() : s.trim());
+  const meaningful = (s: string) => /\p{L}{3,}/u.test(s);
+  const firstLine = (msg.text ?? "").split("\n").map((l) => strip(clean(l))).find(meaningful) ?? "";
+  const fromFile = msg.fileName ? strip(fileTitle(msg.fileName)) : "";
 
   let core: string;
   if (lbl) core = lbl;
-  else if ((type === "note" || type === "tip") && msg.fileName && (!firstLine || firstLine.length < 4)) core = fileTitle(msg.fileName);
-  else if (firstLine) core = capitalise(firstLine.replace(new RegExp(`^${courseCode ?? "\\b\\B"}\\s*[-–:]?\\s*`, "i"), ""));
-  else if (msg.fileName) core = fileTitle(msg.fileName);
-  else core = capitalise(type);
+  else if ((type === "note" || type === "tip") && meaningful(fromFile) && firstLine.length < 4) core = fromFile;
+  else if (firstLine) core = capitalise(firstLine);
+  else if (meaningful(fromFile)) core = fromFile;
+  else core = DEFAULT_TITLE[type];
 
   core = truncate(core, 70);
-  if (!courseCode || core.toUpperCase().includes(courseCode)) return core;
+  if (!courseCode || core.toUpperCase().replace(/\s/g, "").includes(courseCode.replace(" ", ""))) return core;
   return `${courseCode} – ${core}`;
 }
+
+const DEFAULT_TITLE: Record<ItemType, string> = { assignment: "Assignment", project: "Project", task: "Task", note: "Notes", tip: "Tip" };
 
 export function buildSummary(msg: MessageInput): string | null {
   const text = clean(msg.text ?? "");

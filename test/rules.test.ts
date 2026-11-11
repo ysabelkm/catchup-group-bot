@@ -67,6 +67,7 @@ describe("extractRuleBased: ignores chatter", () => {
 
   it("questions from students", () => {
     expect(run(msg("When is the CSC 411 assignment due?")).kind).toBe("ignored");
+    expect(run(msg("Guys\nhas anyone done the CSC 411 assignment?")).kind).toBe("ignored");
   });
 });
 
@@ -126,12 +127,29 @@ describe("extractRuleBased: projects, tasks, notes, tips", () => {
 
   it("a note: a PDF with no caption is titled from the file name", () => {
     expect(item(msg(null, { hasFile: true, fileType: "document", fileName: "CSC411_lecture_notes-week3.pdf" })).title).toBe(
-      "CSC411 lecture notes week3",
+      "CSC 411 – lecture notes week3",
     );
   });
 
   it("a note: a Drive link", () => {
     expect(item(msg("Materials for the test", { links: ["https://drive.google.com/file/d/abc"] })).type).toBe("note");
+  });
+
+  it("a PDF named only by its course code", () => {
+    const file = (fileName: string) => item(msg(null, { hasFile: true, fileType: "document", fileName }));
+    expect(file("ICT415.pdf")).toMatchObject({ title: "ICT 415 – Notes", courseCode: "ICT 415" });
+    expect(file("COS 411 .pdf").title).toBe("COS 411 – Notes");
+    expect(item(msg("INS412", { hasFile: true, fileType: "document", fileName: "INS412.pdf" })).title).toBe("INS 412 – Notes");
+  });
+
+  it("an instruction that ends with a question for the class (real message)", () => {
+    const i = item(msg("ICT415\nFamiliarize yourself with the electromagnetic spectrum\n\nand\n\nWhy we don't use Gamma rays and X-Rays for Data Communication?"));
+    expect(i).toMatchObject({ type: "task", courseCode: "ICT 415", title: "ICT 415 – Familiarize yourself with the electromagnetic spectrum" });
+  });
+
+  it("a long assignment brief with no course code (real message)", () => {
+    const i = item(msg("Write a traditional literature review of one publication related to your FYP.\nThe review should be 1½ pages.\nSubmit both a soft copy and a printed copy."));
+    expect(i.type).toBe("assignment");
   });
 
   it("a tip", () => {

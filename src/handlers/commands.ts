@@ -10,6 +10,7 @@ import { isGroupChat, parseSettings, upsertGroup } from "../services/groups.js";
 import { activeItems, formatItemLine } from "../services/items.js";
 import { buildSummaryContent } from "../summary/build.js";
 import { renderSummary } from "../summary/render.js";
+import { canEdit } from "../services/roles.js";
 
 export const commands = new Composer();
 
@@ -125,14 +126,17 @@ const SUMMARY_COOLDOWN_MS = 2 * 60 * 1000;
 const lastSummaryPreview = new Map<number, number>();
 
 commands.chatType(["group", "supergroup"]).command("summary", async (ctx) => {
-  const last = lastSummaryPreview.get(ctx.chat.id) ?? 0;
-  if (Date.now() - last < SUMMARY_COOLDOWN_MS) {
-    await ctx.reply("I just sent one, scroll up 🙂 (try again in a couple of minutes)", { reply_parameters: { message_id: ctx.msg.message_id } });
-    return;
-  }
   const group = await prisma.group.findUnique({ where: { telegramChatId: BigInt(ctx.chat.id) } });
   if (!group) {
     await ctx.reply("I haven't seen any messages here yet.");
+    return;
+  }
+  // Members get one preview per couple of minutes so the chat isn't flooded. Admins and class
+  // reps skip the limit: Telegram doesn't tell bots about deleted messages, so if a summary was
+  // deleted, they're the ones who can post it again.
+  const last = lastSummaryPreview.get(ctx.chat.id) ?? 0;
+  if (Date.now() - last < SUMMARY_COOLDOWN_MS && !(await canEdit(ctx, group.id))) {
+    await ctx.reply("I just sent one, scroll up 🙂 (try again in a couple of minutes)", { reply_parameters: { message_id: ctx.msg.message_id } });
     return;
   }
   lastSummaryPreview.set(ctx.chat.id, Date.now());
