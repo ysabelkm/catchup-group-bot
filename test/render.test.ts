@@ -37,15 +37,15 @@ describe("renderSummary", () => {
         "📚 <b>Daily summary — Mon 9 Nov</b>",
         "",
         "⏰ <b>Due soon</b>",
-        '• CSC 411 – Assignment 2 — due <b>TOMORROW</b> (Tue 10 Nov) · #Assignments <a href="https://t.me/c/123/5/10">↗</a>',
-        '• MIS 402 – Group project proposal — due Fri 13 Nov · #General <a href="https://t.me/c/123/5/10">↗</a>',
+        '• CSC 411 – Assignment 2 — due <b>TOMORROW</b> (Tue 10 Nov) · <a href="https://t.me/c/123/5/10">in Assignments ↗</a>',
+        '• MIS 402 – Group project proposal — due Fri 13 Nov · <a href="https://t.me/c/123/5/10">in General ↗</a>',
         "",
         "🔄 <b>Ongoing (no due date stated)</b>",
-        '• COS 411 – Reading task — posted Thu 5 Nov (shows until Thu 12 Nov) <a href="https://t.me/c/123/5/10">↗</a>',
+        '• COS 411 – Reading task — posted Thu 5 Nov (shows until Thu 12 Nov) · <a href="https://t.me/c/123/5/10">open ↗</a>',
         "",
         "🆕 <b>New today</b>",
-        '• 📝 Note: HCI Week 9 slides · #Resources <a href="https://t.me/c/123/5/10">↗</a>',
-        '• 💡 Tip: Focus on chapters 3–5 for the test <a href="https://t.me/c/123/5/10">↗</a>',
+        '• 📝 Note: HCI Week 9 slides · <a href="https://t.me/c/123/5/10">in Resources ↗</a>',
+        '• 💡 Tip: Focus on chapters 3–5 for the test · <a href="https://t.me/c/123/5/10">open ↗</a>',
       ].join("\n"),
     );
   });
@@ -93,7 +93,7 @@ describe("splitIntoMessages", () => {
   });
 
   it("stays under Telegram's 4096 limit with real HTML lines", () => {
-    const longLine = `• ${"Very long assignment title ".repeat(10)} — due Fri 13 Nov · #Assignments <a href="https://t.me/c/1234567890/12345/67890">↗</a>`;
+    const longLine = `• ${"Very long assignment title ".repeat(10)} — due Fri 13 Nov · <a href="https://t.me/c/1234567890/12345/67890">in Assignments ↗</a>`;
     const parts = splitIntoMessages("📚 <b>Daily summary — Mon 9 Nov</b>", [
       { heading: "⏰ <b>Due soon</b>", lines: Array(40).fill(longLine) },
       { heading: "🆕 <b>New today</b>", lines: Array(40).fill(longLine) },

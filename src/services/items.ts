@@ -70,7 +70,10 @@ export function formatItemLine(item: ItemView, timezone: string, now = new Date(
     const until = DateTime.fromJSDate(item.expiresAt, { zone: timezone });
     parts.push(` — posted ${posted.toFormat("ccc d LLL")} (shows until ${until.toFormat("ccc d LLL")})`);
   }
-  if (item.topicName) parts.push(` · #${escapeHtml(item.topicName.replace(/\s+/g, ""))}`);
-  if (item.link) parts.push(` <a href="${item.link}">↗</a>`);
+  // The topic name is the link to the message. No "#": Telegram would turn it into a
+  // hashtag, and tapping that searches the chat instead of opening the message.
+  const topic = item.topicName ? `in ${escapeHtml(item.topicName)}` : "";
+  if (item.link) parts.push(` · <a href="${item.link}">${topic ? `${topic} ↗` : "open ↗"}</a>`);
+  else if (topic) parts.push(` · ${topic}`);
   return parts.join("");
 }
