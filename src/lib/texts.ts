@@ -29,7 +29,7 @@ export const PRIVACY = `🔒 <b>What CatchUp stores</b>
 <b>Why:</b> to find assignments, tasks, projects, notes and tips, and list them in a daily summary.
 
 <b>What I keep:</b>
-• Raw message text: deleted after <b>${config.RAW_MESSAGE_RETENTION_DAYS} days</b>.
+• Raw message text, links and file names: deleted after <b>${config.RAW_MESSAGE_RETENTION_DAYS} days</b>.
 • Extracted items (title, short summary, due date, link to the message): kept while the group uses the bot.
 • Your Telegram user id and first name, so admins can manage class reps and so /catchup only shows groups you're in.
 

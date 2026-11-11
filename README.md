@@ -36,7 +36,7 @@ Each ↗ jumps straight to the original message.
 - **Never skips a day**: if the server was asleep at 7 PM, the summary is sent as soon as it wakes. Anything that came due in between is listed under "Was due since the last summary".
 - **Corrections by trusted people**: admins and class reps can fix a due date (`/due 25 Nov 2pm`) or remove a wrong item (`/remove`) by replying to it.
 - **Personal catch-up in DM**: `/catchup` shows everything since you last checked, across all your class groups. Members can also opt in to get the daily summary by DM.
-- **Private by design**: membership is checked live, so only real group members see a group's items. Nothing is sent to third-party services.
+- **Private by design**: membership is checked live, so only real group members see a group's items. Message text, links and file names are wiped after 30 days.
 
 ## Commands
 
@@ -143,6 +143,7 @@ All settings are environment variables, validated at startup ([`src/config.ts`](
 | `SUMMARY_TIME` | | `19:00` | Local time of the daily summary |
 | `DEFAULT_TIMEZONE` | | `Africa/Lagos` | IANA timezone for new groups |
 | `BOT_OWNER_TELEGRAM_ID` | | | Your numeric Telegram ID, for failure alerts. Press Start on the bot first. |
+| `RAW_MESSAGE_RETENTION_DAYS` | | `30` | Days before message text, links and file names are wiped |
 | `BOT_PAUSED` | | `false` | Kill switch: stops summaries |
 | `LOG_LEVEL` | | `info` | pino log level |
 
@@ -152,7 +153,7 @@ All settings are environment variables, validated at startup ([`src/config.ts`](
 | --- | --- |
 | `POST /telegram/webhook` | Telegram updates. Checked against the secret-token header. |
 | `GET /health` | Liveness plus a database check |
-| `POST /cron/daily` | Runs pending extraction, expiry and due summaries. Needs `Authorization: Bearer $CRON_SECRET`. Returns `202` immediately. |
+| `POST /cron/daily` | Runs pending extraction, item expiry, the retention cleanup and due summaries. Needs `Authorization: Bearer $CRON_SECRET`. Returns `202` immediately. |
 
 ## Development
 
@@ -193,7 +194,7 @@ test/                unit and integration tests
 
 ## Privacy
 
-CatchUp stores group messages so it can extract and link items. The retention limit is set by `RAW_MESSAGE_RETENTION_DAYS` (default 30). Automatic deletion after that limit is [on the roadmap](#roadmap) and not yet enforced.
+CatchUp stores group messages so it can extract and link items. Every day, messages older than `RAW_MESSAGE_RETENTION_DAYS` (default 30) have their text, links, file name and sender wiped. Only the message ID and timestamp are kept, so the ↗ links in items still work. Extracted items (title, short summary, due date) are kept while the group uses the bot.
 
 - Items are only shown to people who are currently members of the group. This is checked live with Telegram.
 - Students can see exactly what is stored with `/privacy`.
@@ -201,7 +202,6 @@ CatchUp stores group messages so it can extract and link items. The retention li
 
 ## Roadmap
 
-- [ ] Automatic deletion of raw messages after the retention period
 - [ ] Optional AI extraction (Groq or Gemini) for messages the rules can't classify, with personal data redacted first
 - [ ] An evaluation set of real (anonymised) messages to measure extraction accuracy
 - [ ] Per-group summary time and timezone
