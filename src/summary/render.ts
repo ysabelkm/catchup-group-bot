@@ -38,16 +38,13 @@ export function renderSummary(
   if (isEmpty(content)) return opts.sendWhenEmpty ? [`${header}\n\nNo academic updates today ✅`] : [];
 
   const line = (i: ItemView) => formatItemLine(i, opts.timezone, opts.now);
-  const missedLine = (i: ItemView) => {
-    const due = DateTime.fromJSDate(i.dueAt!, { zone: opts.timezone }).toFormat("ccc d LLL");
-    return `• ${escapeHtml(i.title)} — was due ${due}${i.link ? ` <a href="${i.link}">↗</a>` : ""}`;
-  };
+  const missedLine = (i: ItemView) => formatItemLine(i, opts.timezone, opts.now, { missed: true });
 
   const sections: { heading: string; lines: string[] }[] = [
     { heading: "⌛ <b>Was due since the last summary</b>", lines: content.missed.map(missedLine) },
     { heading: "⏰ <b>Due soon</b>", lines: content.dueSoon.map(line) },
-    { heading: "🔄 <b>Ongoing (no due date stated)</b>", lines: content.ongoing.map(line) },
-    { heading: "🆕 <b>New today</b>", lines: content.fresh.map(line) },
+    { heading: "🔄 <b>Ongoing (no due date)</b>", lines: content.ongoing.map(line) },
+    { heading: "🆕 <b>New notes &amp; tips</b>", lines: content.fresh.map(line) },
     { heading: "📎 <b>Recent notes &amp; tips</b>", lines: content.recentNotes.map(line) },
   ].filter((s) => s.lines.length > 0);
 
@@ -56,7 +53,8 @@ export function renderSummary(
 
 /**
  * Pack sections into as few messages as possible. A section that doesn't fit continues in the
- * next message under its heading marked "(cont.)"; single items are never split.
+ * next message under its heading marked "(cont.)"; single items are never split. Items are
+ * separated by a blank line so each one stands on its own.
  */
 export function splitIntoMessages(header: string, sections: { heading: string; lines: string[] }[], limit = MESSAGE_LIMIT): string[] {
   const messages: string[] = [];
@@ -73,7 +71,7 @@ export function splitIntoMessages(header: string, sections: { heading: string; l
     for (const raw of lines) {
       // An absurdly long single item still has to fit somewhere.
       const itemLine = raw.length > limit - header.length - heading.length - 40 ? `${raw.slice(0, limit - header.length - heading.length - 41)}…` : raw;
-      const addition = (startedInThisMessage ? "" : headingForThisMessage) + `\n${itemLine}`;
+      const addition = (startedInThisMessage ? "\n" : headingForThisMessage) + `\n${itemLine}`;
       if (current.length + addition.length > limit) {
         flush();
         headingForThisMessage = `\n\n${heading} <i>(cont.)</i>`;

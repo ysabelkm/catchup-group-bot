@@ -37,15 +37,22 @@ describe("renderSummary", () => {
         "📚 <b>Daily summary — Mon 9 Nov</b>",
         "",
         "⏰ <b>Due soon</b>",
-        '• CSC 411 – Assignment 2 — due <b>TOMORROW</b> (Tue 10 Nov) · <a href="https://t.me/c/123/5/10">in Assignments ↗</a>',
-        '• MIS 402 – Group project proposal — due Fri 13 Nov · <a href="https://t.me/c/123/5/10">in General ↗</a>',
+        "<b>CSC 411 – Assignment 2</b>",
+        '└ due <b>TOMORROW</b> (Tue 10 Nov) · <a href="https://t.me/c/123/5/10">in Assignments ↗</a>',
         "",
-        "🔄 <b>Ongoing (no due date stated)</b>",
-        '• COS 411 – Reading task — posted Thu 5 Nov (shows until Thu 12 Nov) · <a href="https://t.me/c/123/5/10">open ↗</a>',
+        "<b>MIS 402 – Group project proposal</b>",
+        '└ due Fri 13 Nov · <a href="https://t.me/c/123/5/10">in General ↗</a>',
         "",
-        "🆕 <b>New today</b>",
-        '• 📝 Note: HCI Week 9 slides · <a href="https://t.me/c/123/5/10">in Resources ↗</a>',
-        '• 💡 Tip: Focus on chapters 3–5 for the test · <a href="https://t.me/c/123/5/10">open ↗</a>',
+        "🔄 <b>Ongoing (no due date)</b>",
+        "<b>COS 411 – Reading task</b>",
+        '└ posted Thu 5 Nov · <a href="https://t.me/c/123/5/10">open ↗</a>',
+        "",
+        "🆕 <b>New notes &amp; tips</b>",
+        "📝 <b>HCI Week 9 slides</b>",
+        '└ <a href="https://t.me/c/123/5/10">in Resources ↗</a>',
+        "",
+        "💡 <b>Focus on chapters 3–5 for the test</b>",
+        '└ <a href="https://t.me/c/123/5/10">open ↗</a>',
       ].join("\n"),
     );
   });
@@ -55,8 +62,14 @@ describe("renderSummary", () => {
       { ...empty, dueSoon: [view({ title: "A", dueAt: lagos("2026-11-09T23:59") }), view({ title: "B", dueAt: lagos("2026-11-11T14:00"), dueDateUncertain: true })] },
       opts,
     );
-    expect(text).toContain("A — due <b>TODAY</b>");
-    expect(text).toContain("B — due Wed 11 Nov, 2:00 PM <i>(date unclear — check message)</i>");
+    expect(text).toContain("<b>A</b>\n└ due <b>TODAY</b>");
+    expect(text).toContain("<b>B</b>\n└ due Wed 11 Nov, 2:00 PM <i>(date unclear, check the message)</i>");
+    expect(text).not.toContain("shows until");
+  });
+
+  it("an item with no link or topic is just its title", () => {
+    const [text] = renderSummary({ ...empty, fresh: [view({ type: "tip", title: "Bring a calculator", link: null, topicName: null })] }, opts);
+    expect(text?.endsWith("💡 <b>Bring a calculator</b>")).toBe(true);
   });
 
   it("escapes HTML in titles", () => {
@@ -67,7 +80,7 @@ describe("renderSummary", () => {
   it("lists deadlines that passed while no summary went out", () => {
     const [text] = renderSummary({ ...empty, missed: [view({ title: "CSC 411 – Assignment 1", dueAt: lagos("2026-11-07T23:59") })] }, opts);
     expect(text).toContain("⌛ <b>Was due since the last summary</b>");
-    expect(text).toContain("CSC 411 – Assignment 1 — was due Sat 7 Nov");
+    expect(text).toContain("<b>CSC 411 – Assignment 1</b>\n└ was due Sat 7 Nov");
   });
 
   it("empty days: a one-liner, or nothing when the group opted out", () => {
@@ -78,7 +91,7 @@ describe("renderSummary", () => {
 
 describe("splitIntoMessages", () => {
   it("keeps everything in one message when it fits", () => {
-    expect(splitIntoMessages("H", [{ heading: "S", lines: ["a", "b"] }])).toEqual(["H\n\nS\na\nb"]);
+    expect(splitIntoMessages("H", [{ heading: "S", lines: ["a", "b"] }])).toEqual(["H\n\nS\na\n\nb"]); // a blank line between items
   });
 
   it("splits long summaries under the limit without cutting an item in half", () => {

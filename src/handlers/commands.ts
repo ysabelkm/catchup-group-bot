@@ -96,7 +96,7 @@ commands.chatType(["group", "supergroup"]).command("items", async (ctx) => {
 
   const sections: [string, typeof items][] = [
     ["⏰ <b>Due soon</b>", items.filter((i) => i.dueAt)],
-    ["🔄 <b>Ongoing (no due date stated)</b>", items.filter((i) => !i.dueAt && i.type !== "note" && i.type !== "tip")],
+    ["🔄 <b>Ongoing (no due date)</b>", items.filter((i) => !i.dueAt && i.type !== "note" && i.type !== "tip")],
     ["📎 <b>Notes &amp; tips</b>", items.filter((i) => i.type === "note" || i.type === "tip")],
   ];
 
@@ -107,8 +107,9 @@ commands.chatType(["group", "supergroup"]).command("items", async (ctx) => {
     const block = `\n\n${heading}`;
     if (out.length + block.length > ITEMS_MAX_CHARS) break;
     out += block;
-    for (const item of list) {
-      const line = `\n${formatItemLine(item, group.timezone, now)}`;
+    for (const [n, item] of list.entries()) {
+      // A blank line between items so each one stands on its own.
+      const line = `${n === 0 ? "\n" : "\n\n"}${formatItemLine(item, group.timezone, now)}`;
       if (out.length + line.length > ITEMS_MAX_CHARS) break outer;
       out += line;
       shown++;

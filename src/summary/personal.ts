@@ -21,10 +21,10 @@ export function renderPersonal(header: string, blocks: GroupBlock[], now: Date, 
     const name = `🏫 <b>${escapeHtml(group.title)}</b>`;
     const line = (i: ItemView) => formatItemLine(i, tz, now);
     const parts: [string, string[]][] = [
-      ["⌛ Was due since the last summary", content.missed.map((i) => `• ${escapeHtml(i.title)} — was due ${DateTime.fromJSDate(i.dueAt!, { zone: tz }).toFormat("ccc d LLL")}${i.link ? ` <a href="${i.link}">↗</a>` : ""}`)],
+      ["⌛ Was due since the last summary", content.missed.map((i) => formatItemLine(i, tz, now, { missed: true }))],
       ["⏰ Due soon", content.dueSoon.map(line)],
       ["🔄 Ongoing", content.ongoing.map(line)],
-      ["🆕 New", content.fresh.map(line)],
+      ["🆕 New notes & tips", content.fresh.map(line)],
       ["📎 Recent notes & tips", content.recentNotes.map(line)],
     ];
     const nonEmpty = parts.filter(([, lines]) => lines.length > 0);

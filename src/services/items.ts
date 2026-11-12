@@ -3,7 +3,7 @@ import { prisma } from "../db.js";
 import { escapeHtml } from "../lib/html.js";
 import { messageLink } from "../lib/links.js";
 
-const TYPE_ICON: Record<string, string> = { note: "📝 Note: ", tip: "💡 Tip: " };
+const TYPE_ICON: Record<string, string> = { note: "📝 ", tip: "💡 " };
 
 export type ItemView = {
   id: number;
@@ -60,20 +60,27 @@ export function formatDue(dueAt: Date, timezone: string, now = new Date()): stri
   return `due ${due.toFormat("ccc d LLL")}${time}`;
 }
 
-export function formatItemLine(item: ItemView, timezone: string, now = new Date()): string {
-  const parts = [`• ${TYPE_ICON[item.type] ?? ""}${escapeHtml(item.title)}`];
-  if (item.dueAt) {
-    parts.push(` — ${formatDue(item.dueAt, timezone, now)}`);
-    if (item.dueDateUncertain) parts.push(" <i>(date unclear — check message)</i>");
-  } else if (item.type !== "note" && item.type !== "tip") {
-    const posted = DateTime.fromJSDate(item.createdAt, { zone: timezone });
-    const until = DateTime.fromJSDate(item.expiresAt, { zone: timezone });
-    parts.push(` — posted ${posted.toFormat("ccc d LLL")} (shows until ${until.toFormat("ccc d LLL")})`);
-  }
-  // The topic name is the link to the message. No "#": Telegram would turn it into a
-  // hashtag, and tapping that searches the chat instead of opening the message.
+/**
+ * One item as a two-line card: the title in bold, then the details under it.
+ *
+ *   <b>CSC 411 – Assignment 2</b>
+ *   └ due <b>TOMORROW</b> (Thu 12 Nov) · in ASSIGNMENT ↗
+ *
+ * The topic name is the link to the message. There's no "#": Telegram would turn it into
+ * a hashtag, and tapping that searches the chat instead of opening the message.
+ */
+export function formatItemLine(item: ItemView, timezone: string, now = new Date(), opts: { missed?: boolean } = {}): string {
+  const title = `${TYPE_ICON[item.type] ?? ""}<b>${escapeHtml(item.title)}</b>`;
+  const date = (d: Date) => DateTime.fromJSDate(d, { zone: timezone }).toFormat("ccc d LLL");
+
+  const details: string[] = [];
+  if (item.dueAt && opts.missed) details.push(`was due ${date(item.dueAt)}`);
+  else if (item.dueAt) details.push(formatDue(item.dueAt, timezone, now) + (item.dueDateUncertain ? " <i>(date unclear, check the message)</i>" : ""));
+  else if (item.type !== "note" && item.type !== "tip") details.push(`posted ${date(item.createdAt)}`);
+
   const topic = item.topicName ? `in ${escapeHtml(item.topicName)}` : "";
-  if (item.link) parts.push(` · <a href="${item.link}">${topic ? `${topic} ↗` : "open ↗"}</a>`);
-  else if (topic) parts.push(` · ${topic}`);
-  return parts.join("");
+  if (item.link) details.push(`<a href="${item.link}">${topic ? `${topic} ↗` : "open ↗"}</a>`);
+  else if (topic) details.push(topic);
+
+  return details.length ? `${title}\n└ ${details.join(" · ")}` : title;
 }

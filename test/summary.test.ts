@@ -80,7 +80,7 @@ describe("sendDueSummaries", () => {
     await sendDueSummaries(api, lagos("2026-11-09T19:05")); // cron retry / late check: no double-send
     expect(ours()).toHaveLength(1);
     expect(ours()[0]!.message_thread_id).toBe(SUMMARY_TOPIC);
-    expect(ours()[0]!.text).toContain("CSC 411 – Assignment 2 — due <b>TOMORROW</b>");
+    expect(ours()[0]!.text).toContain("<b>CSC 411 – Assignment 2</b>\n└ due <b>TOMORROW</b>");
     const log = await prisma.summaryLog.findFirstOrThrow({ where: { groupId } });
     expect(log).toMatchObject({ summaryDate: "2026-11-09", status: "sent", telegramMessageIds: [1001] });
   });
@@ -96,7 +96,7 @@ describe("sendDueSummaries", () => {
     await sendDueSummaries(api, lagos("2026-11-10T19:00"));
     await sendDueSummaries(api, lagos("2026-11-11T19:00"));
     expect(ours()).toHaveLength(2);
-    expect(ours()[0]!.text).toContain("📝 Note: HCI Week 9 slides");
+    expect(ours()[0]!.text).toContain("📝 <b>HCI Week 9 slides</b>");
     expect(ours()[1]!.text).not.toContain("HCI Week 9 slides");
   });
 
@@ -104,7 +104,7 @@ describe("sendDueSummaries", () => {
     // Posted Monday morning; Monday's summary never happened; expiry timer already passed.
     await addItem({ type: "tip", title: "Focus on chapters 3–5", createdAt: lagos("2026-11-09T09:00"), expiresAt: lagos("2026-11-10T01:00"), status: "expired" });
     await sendDueSummaries(api, lagos("2026-11-10T19:00"));
-    expect(ours()[0]!.text).toContain("💡 Tip: Focus on chapters 3–5");
+    expect(ours()[0]!.text).toContain("💡 <b>Focus on chapters 3–5");
   });
 
   it("lists deadlines that passed on days with no summary", async () => {
@@ -114,7 +114,7 @@ describe("sendDueSummaries", () => {
     await sendDueSummaries(api, lagos("2026-11-09T19:00"));
     const text = ours()[0]!.text;
     expect(text).toContain("⌛ <b>Was due since the last summary</b>");
-    expect(text).toContain("CSC 411 – Assignment 1 — was due Sat 7 Nov");
+    expect(text).toContain("<b>CSC 411 – Assignment 1</b>\n└ was due Sat 7 Nov");
     expect(text).not.toContain("Old one"); // shown as "due today" in Friday's summary already
   });
 
